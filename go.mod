@@ -1,4 +1,4 @@
-module github.com/zplzpl/govips
+module github.com/zplzpl/govips/v2
 
 go 1.15
 
