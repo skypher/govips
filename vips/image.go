@@ -516,6 +516,8 @@ func (r *ImageRef) ExportNative() ([]byte, *ImageMetadata, error) {
 		return r.ExportHeif(NewHeifExportParams())
 	case ImageTypeTIFF:
 		return r.ExportTiff(NewTiffExportParams())
+	case ImageTypeGIF:
+		return r.ExportGif(NewGifExportParams())
 	default:
 		return r.ExportJpeg(NewJpegExportParams())
 	}
