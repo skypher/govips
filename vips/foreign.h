@@ -41,10 +41,6 @@ typedef struct SaveParams {
   // JPEG
   BOOL jpegOptimizeCoding;
   VipsForeignJpegSubsample jpegSubsample;
-  BOOL jpegTrellisQuant;
-  BOOL jpegOvershootDeringing;
-  BOOL jpegOptimizeScans;
-  int jpegQuantTable;
 
   // PNG
   int pngCompression;
@@ -73,3 +69,5 @@ SaveParams create_save_params(ImageType outputFormat);
 void init_save_params(SaveParams *params);
 
 int save_to_buffer(SaveParams *params);
+
+int vips_gifsave_go(VipsImage *in, void **buf, size_t *len);

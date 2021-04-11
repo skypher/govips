@@ -45,19 +45,13 @@ type ImageMetadata struct {
 // ExportParams are options when exporting an image to file or buffer.
 // Deprecated: Use format-specific params
 type ExportParams struct {
-	Format             ImageType
-	Quality            int
-	Compression        int
-	Interlaced         bool
-	Lossless           bool
-	Effort             int
-	StripMetadata      bool
-	OptimizeCoding     bool          // jpeg param
-	SubsampleMode      SubsampleMode // jpeg param
-	TrellisQuant       bool          // jpeg param
-	OvershootDeringing bool          // jpeg param
-	OptimizeScans      bool          // jpeg param
-	QuantTable         int           // jpeg param
+	Format        ImageType
+	Quality       int
+	Compression   int
+	Interlaced    bool
+	Lossless      bool
+	Effort        int
+	StripMetadata bool
 }
 
 // NewDefaultExportParams creates default values for an export when image type is not JPEG, PNG or WEBP.
@@ -112,15 +106,9 @@ func NewDefaultWEBPExportParams() *ExportParams {
 
 // JpegExportParams are options when exporting a JPEG to file or buffer
 type JpegExportParams struct {
-	StripMetadata      bool
-	Quality            int
-	Interlace          bool
-	OptimizeCoding     bool
-	SubsampleMode      SubsampleMode
-	TrellisQuant       bool
-	OvershootDeringing bool
-	OptimizeScans      bool
-	QuantTable         int
+	StripMetadata bool
+	Quality       int
+	Interlace     bool
 }
 
 // NewJpegExportParams creates default values for an export of a JPEG image.
@@ -195,6 +183,14 @@ func NewTiffExportParams() *TiffExportParams {
 		Compression: TiffCompressionLzw,
 		Predictor:   TiffPredictorHorizontal,
 	}
+}
+
+// GifExportParams are options when exporting a GIF to file or buffer
+type GifExportParams struct {
+}
+
+func NewGifExportParams() *GifExportParams {
+	return &GifExportParams{}
 }
 
 // NewImageFromReader loads an ImageRef from the given reader
@@ -321,6 +317,24 @@ func (r *ImageRef) Width() int {
 // Height returns the height of this image.
 func (r *ImageRef) Height() int {
 	return int(r.image.Ysize)
+}
+
+func (r *ImageRef) GetInt(name string) (int, error) {
+	var i C.int
+
+	if C.vips_image_get_int(r.image, cachedCString(name), &i) != 0 {
+		return 0, errors.New("vips_image_get_int error")
+	}
+
+	return int(i), nil
+}
+
+func (r *ImageRef) GetIntDefault(name string, def int) (int, error) {
+	if C.vips_image_get_typeof(r.image, cachedCString(name)) == 0 {
+		return def, nil
+	}
+
+	return r.GetInt(name)
 }
 
 // Bands returns the number of bands for this image.
@@ -482,15 +496,9 @@ func (r *ImageRef) Export(params *ExportParams) ([]byte, *ImageMetadata, error) 
 	default:
 		format = ImageTypeJPEG
 		return r.ExportJpeg(&JpegExportParams{
-			Quality:            params.Quality,
-			StripMetadata:      params.StripMetadata,
-			Interlace:          params.Interlaced,
-			OptimizeCoding:     params.OptimizeCoding,
-			SubsampleMode:      params.SubsampleMode,
-			TrellisQuant:       params.TrellisQuant,
-			OvershootDeringing: params.OvershootDeringing,
-			OptimizeScans:      params.OptimizeScans,
-			QuantTable:         params.QuantTable,
+			Quality:       params.Quality,
+			StripMetadata: params.StripMetadata,
+			Interlace:     params.Interlaced,
 		})
 	}
 }
@@ -583,6 +591,20 @@ func (r *ImageRef) ExportTiff(params *TiffExportParams) ([]byte, *ImageMetadata,
 	return buf, r.newMetadata(ImageTypeTIFF), nil
 }
 
+// ExportGif exports the image as GIF to a buffer.
+func (r *ImageRef) ExportGif(params *GifExportParams) ([]byte, *ImageMetadata, error) {
+	if params == nil {
+		params = NewGifExportParams()
+	}
+
+	buf, err := vipsSaveGifToBuffer(r.image, *params)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return buf, r.newMetadata(ImageTypeGIF), nil
+}
+
 // CompositeMulti composites the given overlay image on top of the associated image with provided blending mode.
 func (r *ImageRef) CompositeMulti(ins []*ImageComposite) error {
 	out, err := vipsComposite(toVipsCompositeStructs(r, ins))
@@ -593,19 +615,26 @@ func (r *ImageRef) CompositeMulti(ins []*ImageComposite) error {
 	return nil
 }
 
-// Composite composites the given overlay image on top of the associated image with provided blending mode.
-func (r *ImageRef) Composite(overlay *ImageRef, mode BlendMode, x, y int) error {
-	out, err := vipsComposite2(r.image, overlay.image, mode, x, y)
+func (r *ImageRef) Arrayjoin(in []*ImageRef) error {
+
+	arr := make([]*C.VipsImage, len(in))
+	for i, im := range in {
+		arr[i] = im.image
+	}
+
+	out, err := arrayjoin(arr)
 	if err != nil {
 		return err
 	}
+
 	r.setImage(out)
+
 	return nil
 }
 
-// Insert draws the image on top of the associated image at the given coordinates.
-func (r *ImageRef) Insert(sub *ImageRef, x, y int, expand bool, background *ColorRGBA) error {
-	out, err := vipsInsert(r.image, sub.image, x, y, expand, background)
+// Composite composites the given overlay image on top of the associated image with provided blending mode.
+func (r *ImageRef) Composite(overlay *ImageRef, mode BlendMode, x, y int) error {
+	out, err := vipsComposite2(r.image, overlay.image, mode, x, y)
 	if err != nil {
 		return err
 	}
@@ -1015,12 +1044,6 @@ func (r *ImageRef) Average() (float64, error) {
 		return 0, err
 	}
 	return out, nil
-}
-
-// FindTrim returns the bounding box of the non-border part of the image
-// Returned values are left, top, width, height
-func (r *ImageRef) FindTrim(threshold float64, backgroundColor *Color) (int, int, int, int, error) {
-	return vipsFindTrim(r.image, threshold, backgroundColor)
 }
 
 // DrawRect draws an (optionally filled) rectangle with a single colour
