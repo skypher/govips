@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/zpl/govips/v2/vips"
+	"github.com/zplzpl/govips/v2/vips"
 )
 
 func checkError(err error) {
