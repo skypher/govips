@@ -13,6 +13,7 @@ The intent for this is to enable developers to build extremely fast image proces
 -   [libvips](https://github.com/libvips/libvips) 8.10+
 -   C compatible compiler such as gcc 4.6+ or clang 3.0+
 -   Go 1.14+
+-	Base on github.com/davidbyttow/govips/v2 v2.5.0
 
 ## Dependencies
 

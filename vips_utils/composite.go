@@ -7,7 +7,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/davidbyttow/govips/v2/vips"
+	"github.com/zpl/govips/v2/vips"
 )
 
 func CompositeImgFromFiles(files []string, outFile string) error {
