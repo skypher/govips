@@ -865,6 +865,16 @@ func (r *ImageRef) ExtractArea(left, top, width, height int) error {
 	return nil
 }
 
+// ExtractArea crops the image to a specified area
+func (r *ImageRef) ExtractAreaNew(left, top, width, height int) (*ImageRef,error) {
+	out, err := vipsExtractArea(r.image, left, top, width, height)
+	if err != nil {
+		return nil,err
+	}
+
+	return newImageRef(out,r.format,r.buf),nil
+}
+
 // RemoveICCProfile removes the ICC Profile information from the image.
 // Typically browsers and other software assume images without profile to be in the sRGB color space.
 func (r *ImageRef) RemoveICCProfile() error {
